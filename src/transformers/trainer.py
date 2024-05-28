@@ -408,6 +408,7 @@ class Trainer:
 
         # set the correct log level depending on the node
         log_level = args.get_process_log_level()
+        log_level = logging.INFO
         logging.set_verbosity(log_level)
 
         # force device and distributed setup init explicitly
