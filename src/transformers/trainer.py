@@ -403,7 +403,8 @@ class Trainer:
         self.peak_memory_list = {"optim":[],"gradient":[],"activation":[]}
         self.current_memory_list = {"optim":[],"gradient":[],"activation":[],"model": [],"free":[]}
         self.step = 0
-        self.totalstep = 0
+        self.totalstep = 1
+        self.dividestep = 0
         ############## end #############
         self.create_accelerator_and_postprocess()
 
