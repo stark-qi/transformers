@@ -2200,10 +2200,11 @@ class Trainer:
             logger.info("##################################")
             logger.info(f"The memory usage of the model and dataset is {(current_memory/1024**3)} GB")
             self.current_memory_list["model"].append(current_memory)
-            self.totalstep = len(epoch_iterator)
+            
             logger.info("##################################")
             
             epoch_iterator = train_dataloader
+            self.totalstep = len(num_train_epochs)
             if hasattr(epoch_iterator, "set_epoch"):
                 epoch_iterator.set_epoch(epoch)
 
