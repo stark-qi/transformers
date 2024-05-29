@@ -2337,7 +2337,7 @@ class Trainer:
                     optim_memory = torch.cuda.memory_allocated()
                     peak_memory_optim = torch.cuda.max_memory_allocated()
                     if self.step%(self.totalstep//10) == 0 or self.step == self.totalstep-1:
-                      logger.info(f"Now the step {step}")
+                      logger.info(f"Now the step {self.step}")
                       logger.info("##################################")
                       logger.info(f"The optim memory usage of this batch is {(optim_memory-current_memory)/1024**3} GB")
                       logger.info(f"The peak usage during optimizer is {(peak_memory_optim/1024**3)} GB")
