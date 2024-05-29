@@ -1933,7 +1933,7 @@ class Trainer:
         torch.cuda.reset_peak_memory_stats()
         current_memory = torch.cuda.memory_allocated()
         logger.info("##################################")
-        logger.info(f"The memory usage of the model and dataset is {(current_memory/1024**3)} GB")
+        logger.info(f"The memory after accelerator free is {(current_memory/1024**3)} GB")
         self.current_memory_list["free"].append(current_memory)
         logger.info("##################################")
         ########### end ###########
@@ -2200,11 +2200,10 @@ class Trainer:
             logger.info("##################################")
             logger.info(f"The memory usage of the model and dataset is {(current_memory/1024**3)} GB")
             self.current_memory_list["model"].append(current_memory)
-            
             logger.info("##################################")
             
             epoch_iterator = train_dataloader
-            self.totalstep = len(num_train_epochs)
+            self.totalstep = len(epoch_iterator)
             if hasattr(epoch_iterator, "set_epoch"):
                 epoch_iterator.set_epoch(epoch)
 
