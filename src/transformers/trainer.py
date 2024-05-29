@@ -2203,7 +2203,6 @@ class Trainer:
             logger.info("##################################")
             
             epoch_iterator = train_dataloader
-            self.totalstep = len(epoch_iterator)
             if hasattr(epoch_iterator, "set_epoch"):
                 epoch_iterator.set_epoch(epoch)
 
@@ -2231,6 +2230,9 @@ class Trainer:
 
             step = -1
             for step, inputs in enumerate(epoch_iterator):
+                #############设置总步长##############
+                self.step = step
+                self.totalstep = len(epoch_iterator) 
                 total_batched_samples += 1
 
                 if self.args.include_num_input_tokens_seen:
