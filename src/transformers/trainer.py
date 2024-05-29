@@ -399,7 +399,12 @@ class Trainer:
         self.hp_name = None
         self.deepspeed = None
         self.is_in_train = False
-
+        ############## my variance ##############
+        self.peak_memory_list = {"optim":[],"gradient":[],"activation":[]}
+        self.current_memory_list = {"optim":[],"gradient":[],"activation":[],"model": [],"free":[]}
+        self.step = 0
+        self.totalstep = 0
+        ############## end #############
         self.create_accelerator_and_postprocess()
 
         # memory metrics - must set up as early as possible
@@ -1921,6 +1926,16 @@ class Trainer:
         self, batch_size=None, args=None, resume_from_checkpoint=None, trial=None, ignore_keys_for_eval=None
     ):
         self.accelerator.free_memory()
+
+         ########### modify ############
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+        current_memory = torch.cuda.memory_allocated()
+        logger.info("##################################")
+        logger.info(f"The memory usage of the model and dataset is {(current_memory/1024**3)} GB")
+        self.current_memory_list["free"].append(current_memory)
+        logger.info("##################################")
+        ########### end ###########
         self._train_batch_size = batch_size
         if self.args.auto_find_batch_size:
             if self.state.train_batch_size != self._train_batch_size:
@@ -2106,7 +2121,6 @@ class Trainer:
         # FSDP(Transformers Model), Dynamo Optimized Module(Transformers Model) etc.
 
         # Train!
-        logging.basicConfig(level=logging.INFO)
         logger.info("***** Running training *****")
         logger.info(f"  Num examples = {num_examples:,}")
         logger.info(f"  Num Epochs = {num_train_epochs:,}")
@@ -2179,6 +2193,14 @@ class Trainer:
 
         total_batched_samples = 0
         for epoch in range(epochs_trained, num_train_epochs):
+            torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats()
+            current_memory = torch.cuda.memory_allocated()
+            logger.info("##################################")
+            logger.info(f"The memory usage of the model and dataset is {(current_memory/1024**3)} GB")
+            self.current_memory_list["model"].append(current_memory)
+            logger.info("##################################")
+            
             epoch_iterator = train_dataloader
             if hasattr(epoch_iterator, "set_epoch"):
                 epoch_iterator.set_epoch(epoch)
@@ -2307,7 +2329,22 @@ class Trainer:
                             grad_norm = _grad_norm
 
                     self.optimizer.step()
+                    # Optimizer step
+                    ######### my modified #########
+                    torch.cuda.empty_cache()
+                    optim_memory = torch.cuda.memory_allocated()
+                    peak_memory_optim = torch.cuda.max_memory_allocated()
+                    if self.step%(self.totalstep//10) == 0 or self.step == self.totalstep-1:
+                      logger.info(f"Now the step {step}")
+                      logger.info("##################################")
+                      logger.info(f"The optim memory usage of this batch is {(optim_memory-current_memory)/1024**3} GB")
+                      logger.info(f"The peak usage during optimizer is {(peak_memory_optim/1024**3)} GB")
+                      logger.info("##################################")
+                    self.peak_memory_list["optim"].append(peak_memory_optim)
+                    self.current_memory_list["optim"].append(optim_memory)
+                    torch.cuda.reset_peak_memory_stats()
 
+                    ######### end ##########
                     optimizer_was_run = not self.accelerator.optimizer_step_was_skipped
                     if optimizer_was_run:
                         # Delay optimizer scheduling until metrics are generated
@@ -2330,6 +2367,42 @@ class Trainer:
                     if is_torch_xla_available():
                         xm.mark_step()
                     break
+            ######### my modified #########
+            peak_memory_list = self.peak_memory_list
+            for key in peak_memory_list.keys():
+              maxi = max(peak_memory_list[key])
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info(f"The max usage of {key} of this epoch is {maxi/1024**3}GB")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+            current_memory_list = self.current_memory_list
+            for key in current_memory_list.keys():
+              maxi = max(current_memory_list[key])
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info(f"The max current usage of {key} of epoch is {maxi/1024**3}GB")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+            ######### end ##########
             if step < 0:
                 logger.warning(
                     "There seems to be not a single sample in your epoch_iterator, stopping training at step"
@@ -2352,7 +2425,40 @@ class Trainer:
                     )
             if self.control.should_training_stop:
                 break
-
+        peak_memory_list = self.peak_memory_list
+        for key in peak_memory_list.keys():
+              maxi = max(peak_memory_list[key])
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info(f"The max usage of {key} of training is {maxi/1024**3}GB")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+        current_memory_list = self.current_memory_list
+        for key in current_memory_list.keys():
+              maxi = max(current_memory_list[key])
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info(f"The max current usage of {key} of training is {maxi/1024**3}GB")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
+              logger.info("##################################")
         if args.past_index and hasattr(self, "_past"):
             # Clean the state at the end of training
             delattr(self, "_past")
@@ -3285,6 +3391,18 @@ class Trainer:
         else:
             self.accelerator.backward(loss, **kwargs)
 
+        torch.cuda.empty_cache()
+        activation_memory_1 = torch.cuda.memory_allocated()
+        peak_memory_loss = torch.cuda.max_memory_allocated()
+        if self.step%(self.totalstep//10) == 0 or self.step == self.totalstep-1:
+          logger.info(f"Now the step {self.step}")
+          logger.info("##################################")
+          logger.info(f"The memory usage of gradient of this batch is {(activation_memory_1)/1024**3} GB")
+          logger.info(f"The peak usage during backward is {(peak_memory_loss/1024**3)} GB")
+          logger.info("##################################")
+        self.peak_memory_list["gradient"].append(peak_memory_loss)
+        self.current_memory_list["gradient"].append(activation_memory_1)
+        torch.cuda.reset_peak_memory_stats()
         return loss.detach() / self.args.gradient_accumulation_steps
 
     def compute_loss(self, model, inputs, return_outputs=False):
@@ -3321,6 +3439,19 @@ class Trainer:
                 )
             # We don't use .loss here since the model may return tuples instead of ModelOutput.
             loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+        #####################  modiflied ###################
+        torch.cuda.empty_cache()
+        activation_memory = torch.cuda.memory_allocated()
+        peak_memory_activation = torch.cuda.max_memory_allocated()
+        if self.step%(self.totalstep//10) == 0 or self.step == self.totalstep-1:
+          logger.info(f"Now the step {self.step}")
+          logger.info("##################################")
+          logger.info(f"The activation memory usage is {(activation_memory)/1024**3} GB")
+          logger.info(f"The max memory usage during forward part is {(peak_memory_activation)/1024**3} GB")
+          logger.info("##################################")
+        torch.cuda.reset_peak_memory_stats()
+        self.peak_memory_list["activation"].append(peak_memory_activation)
+        self.current_memory_list["activation"].append(activation_memory)
 
         return (loss, outputs) if return_outputs else loss
 
